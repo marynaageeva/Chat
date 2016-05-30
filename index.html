@@ -1,0 +1,152 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Simple chat</title>
+    <style>
+        body {
+            font-family: Arial Calibri;
+            font-size: 16px;
+        }
+
+        #chat-wrap {
+            width: 800px;
+            height: 400px;
+            margin-left: 90px;
+            padding: 20px;
+            float:left;
+            border: 1px #000 solid;
+            overflow: auto;
+        }
+
+        #content-wrap {
+            visibility: hidden;
+        }
+
+        input[type="submit"] {
+            height: 35px;
+            width: 100px;
+            font-size: 20px;
+        }
+
+        input[type="text"] {
+            height:30px;
+            width: 250px;
+            font-size: 20px;
+            padding-left: 30px;
+        }
+
+        #message-field {
+            width: 70%;
+            height: 35px;
+            margin-left: 10%;
+            border-radius: 5px;
+            background: rgba(163, 250,255, .7);
+        }
+
+        #messages {
+            margin-left: 5%;
+        }
+        #messages li{
+            list-style: none;
+            height: 25px;
+            margin-top: 10px;
+        }
+
+        #messages li:nth-child(2n) {
+            background: #B6E3FF;
+        }
+
+        #users {
+            width: 150px;
+            height: 100px;
+            margin: 10px;
+            padding: 10px;
+            border: 1px #000 solid;
+            overflow: auto;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="nick-wrap">
+        <p id="nick-error"></p>
+        <form id="nick-form">
+            <input id="nickname" type="text" placeholder="Enter your name" maxlength="20">
+            <input type="submit" value="login">
+        </form>
+    </div>
+
+    <div id="content-wrap">
+        <div id="chat-wrap">
+            <div id="chat-place">
+                <form id="main-form">
+                    <input type="text" id="message-field" maxlength="100">
+                    <input type="submit" value="Send">
+                </form>
+                <ul id="messages"></ul>
+            </div>
+        </div>
+        <div id="users"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = io();
+        var nickForm = document.getElementById("nick-form");
+        var nickError = document.getElementById("nick-error");
+        var nickBox = document.getElementById("nickname");
+        var userField = document.getElementById("users");
+        var form = document.getElementById("main-form");
+        var ul = document.getElementById('messages');
+
+        form.onsubmit = function (e) {
+            var input = document.getElementById('message-field');
+            var text = input.value;
+            if (text =='') return false;
+            input.value = '';
+            socket.emit('message', text, function (msg) {
+                createLi(msg);
+            });
+            return false;
+        }
+
+        nickForm.onsubmit = function (e) {
+            e.preventDefault();
+            if(nickBox.value=="") return;
+             socket.emit("new user", nickBox.value, function(data) {
+                if (data) {
+                    document.getElementById("nick-wrap").style.visibility = "hidden";
+                    document.getElementById("content-wrap").style.visibility = "visible";
+                } else {
+                    nickError.innerHTML = "Sorry, but you cannot login with this username because it's already taken!";
+                }
+             });
+            nickBox.value = "";
+        }
+
+        socket.on('usernames', function (data) {
+            var users = '';
+            for(var i = 0; i<data.length;i++) {
+                users += data[i] + '<br/>';
+            }
+            userField.innerHTML = '<b>'+"users on-line"+'</b>' + '<br/>'+users;
+        });
+
+        socket.on('load old msgs', function (docs) {
+            for(var i = docs.length-1;i>-1;i--) {
+                createLi(docs[i].msg, docs[i].nick);
+            }
+        });
+
+        socket.on('message', function (data) {
+            createLi(data.msg, data.nick)
+        });
+
+        function createLi(msg, username) {
+            var li = document.createElement("li");
+            li.innerHTML = "<b>"+username+"</b>"+": "+msg;
+                ul.insertBefore(li, ul.children[0]);
+        }
+    </script>
+</body>
+</html>
